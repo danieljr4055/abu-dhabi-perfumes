@@ -1,0 +1,51 @@
+:root {
+  color-scheme: light;
+  --color-ink-950: #161713;
+  --color-ink-800: #262a24;
+  --color-ink-650: #555951;
+  --color-ink-500: #74776f;
+  --color-porcelain-50: #fbfaf6;
+  --color-stone-100: #f1efe9;
+  --color-stone-200: #e7e4dc;
+  --color-stone-300: #d5d2c9;
+  --color-champagne-600: #81704f;
+  --color-success: #41694d;
+  --color-warning: #8b6635;
+  --color-info: #50687c;
+  --color-danger: #884f46;
+  --font-display: 'Cormorant Garamond', Georgia, serif;
+  --font-ui: 'Manrope', Arial, sans-serif;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --space-16: 64px;
+  --space-20: 80px;
+  --space-24: 96px;
+  --space-32: 128px;
+  --radius-control: 8px;
+  --radius-media: 12px;
+  --radius-panel: 14px;
+  --radius-pill: 999px;
+  --shadow-float: 0 18px 55px rgb(22 23 19 / .14);
+  --shadow-soft: 0 8px 28px rgb(22 23 19 / .08);
+  --duration-fast: 160ms;
+  --duration-standard: 320ms;
+  --ease-physical: cubic-bezier(.22, .8, .3, 1);
+  --header-height: 76px;
+  --content-max: 1440px;
+
+  /* Compatibility aliases removed after the component migration. */
+  --ink: var(--color-ink-950);
+  --paper: var(--color-porcelain-50);
+  --muted: var(--color-ink-500);
+  --line: var(--color-stone-300);
+  --accent: var(--color-champagne-600);
+  --serif: var(--font-display);
+  --sans: var(--font-ui);
+}

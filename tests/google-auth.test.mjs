@@ -1,0 +1,36 @@
+import {setup} from './support/database.mjs';
+import {test} from 'node:test';
+import assert from 'node:assert/strict';
+import {generateKeyPair,exportJWK,SignJWT,createLocalJWKSet} from 'jose';
+const raw=setup();
+const {verifyGoogleCredential,googleChallenge,googleLogin}=await import('../src/server/google-auth.ts');
+test('Google verifica firma, audiencia, emisor, expiración y nonce',async()=>{
+ const {publicKey,privateKey}=await generateKeyPair('RS256');
+ const keys=createLocalJWKSet({keys:[{...await exportJWK(publicKey),kid:'test'}]});
+ const claims={sub:'123',email:'owner@gmail.com',email_verified:true,nonce:'challenge'};
+ const token=async(overrides={})=>new SignJWT({...claims,...overrides}).setProtectedHeader({alg:'RS256',kid:'test'}).setIssuer('https://accounts.google.com').setAudience('client').setExpirationTime('5m').sign(privateKey);
+ assert.equal((await verifyGoogleCredential(await token(),'client','challenge',keys)).sub,'123');
+ await assert.rejects(verifyGoogleCredential(await token(),'other','challenge',keys));
+ await assert.rejects(verifyGoogleCredential(await token(),'client','wrong',keys));
+ await assert.rejects(verifyGoogleCredential(await token({email_verified:false}),'client','challenge',keys));
+ const expired=await new SignJWT(claims).setProtectedHeader({alg:'RS256',kid:'test'}).setIssuer('https://accounts.google.com').setAudience('client').setExpirationTime(1).sign(privateKey);
+ await assert.rejects(verifyGoogleCredential(expired,'client','challenge',keys));
+});
+test('el login exige autorización, vincula sub y consume el desafío una sola vez',async()=>{
+ globalThis.__testEnv={GOOGLE_CLIENT_ID:'client'};
+ const {publicKey,privateKey}=await generateKeyPair('RS256');
+ const keys=createLocalJWKSet({keys:[{...await exportJWK(publicKey),kid:'test'}]});
+ const request=new Request('https://store.example/api/auth/google',{method:'POST'});
+ const challenge=await googleChallenge(request);
+ const credential=await new SignJWT({sub:'123',email:'owner@gmail.com',email_verified:true,nonce:challenge.nonce}).setProtectedHeader({alg:'RS256',kid:'test'}).setIssuer('https://accounts.google.com').setAudience('client').setExpirationTime('5m').sign(privateKey);
+ const attempt=new Request(request,{headers:{cookie:challenge.cookie.split(';')[0]}});
+ await assert.rejects(googleLogin(attempt,{credential},keys),/autorizado/);
+ raw.exec("INSERT INTO users(id,username,name,password_hash,role,created_at) VALUES(1,'owner','Owner','','admin','now'); INSERT INTO google_identities(user_id,email) VALUES(1,'owner@gmail.com')");
+ const next=await googleChallenge(request);
+ const valid=await new SignJWT({sub:'123',email:'owner@gmail.com',email_verified:true,nonce:next.nonce}).setProtectedHeader({alg:'RS256',kid:'test'}).setIssuer('https://accounts.google.com').setAudience('client').setExpirationTime('5m').sign(privateKey);
+ const authorized=new Request(request,{headers:{cookie:next.cookie.split(';')[0]}});
+ const result=await googleLogin(authorized,{credential:valid},keys);
+ assert.equal(result.user.role,'admin');assert.match(result.cookie,/HttpOnly/);assert.match(result.cookie,/Secure/);
+ assert.equal(raw.prepare('SELECT google_sub FROM google_identities').get().google_sub,'123');
+ await assert.rejects(googleLogin(authorized,{credential:valid},keys),/venció/);
+});

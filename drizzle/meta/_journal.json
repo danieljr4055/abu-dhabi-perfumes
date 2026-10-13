@@ -1,0 +1,27 @@
+{
+  "version": "7",
+  "dialect": "sqlite",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "6",
+      "when": 1789781868774,
+      "tag": "0000_volatile_whirlwind",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1791842213329,
+      "tag": "0001_discovery",
+      "breakpoints": false
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1791842213330,
+      "tag": "0002_security",
+      "breakpoints": false
+    }
+  ]
+}

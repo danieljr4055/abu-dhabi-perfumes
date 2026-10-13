@@ -1,0 +1,12 @@
+# Generate private initial credentials using node scripts/create-admin.mjs
+ADMIN_USERNAME=
+ADMIN_PASSWORD_HASH=
+
+# Google Identity Services client ID (public identifier, not a private key).
+GOOGLE_CLIENT_ID=
+# Server-only credentials. Never put these in NEXT_PUBLIC_* or VITE_*.
+GOOGLE_SERVICE_ACCOUNT_EMAIL=
+GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY=
+GOOGLE_SPREADSHEET_ID=
+# Exact image hosts separated by commas. Empty permits only /images/ paths.
+IMAGE_ALLOWED_HOSTS=

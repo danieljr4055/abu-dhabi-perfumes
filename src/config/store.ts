@@ -1,0 +1,14 @@
+export const STORE_NAME = 'Abu Dhabi Perfumes';
+export const WHATSAPP_NUMBER = '573151019779';
+export const INSTAGRAM_URL = '';
+export const FACEBOOK_URL = '';
+export const STORE_ADDRESS = 'Cra. 3 #13 - 101';
+export const STORE_CITY = 'Cartago, Valle del Cauca';
+export const STORE_HOURS = '9:00 a. m. a 7:00 p. m.';
+export const PAYMENT_METHODS = ['Tarjeta', 'Transferencia', 'Efectivo'] as const;
+export const INVENTORY = { lowStockThreshold: 3, maxQuantityPerItem: 20 };
+export const ORDER_NUMBER_OFFSET = 754;
+export const ORDER_STATUSES = ['Pendiente', 'Contactado', 'Pago pendiente', 'Pago recibido', 'Preparando pedido', 'Enviado', 'Entregado', 'Cancelado'] as const;
+export type OrderStatus = typeof ORDER_STATUSES[number];
+export const SHIPPING = { mode: 'confirm' as const, label: 'Envío por confirmar' };
+export const currency = (n: number) => new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(n);

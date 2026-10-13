@@ -1,0 +1,5 @@
+import type { OrderStatus } from '../config/store';
+export type Product={variantId?:number;sku?:string;kind?:string;priceKnown?:boolean;id:number;code:string;name:string;brand:string;category:string;gender:string;description:string;price:number;oldPrice:number|null;size:string;stock?:number;reserved?:number;sold?:number;images:string[];tags:string[];featured:number;active?:number;createdAt:string;available:number;version?:number};
+export type OrderItem={variantId?:number;sku?:string;brand?:string;kind?:string;oldPrice?:number|null;discount?:number;productId:number;code:string;name:string;size:string;image:string;price:number;quantity:number;subtotal:number};
+export type Order={whatsappNumber?:string;id:number;code:string;createdAt:string;name:string;phone:string;address:string;city:string;notes:string;payment:string;subtotal:number;shipping:number|null;total:number;status:OrderStatus;version:number;items:OrderItem[];events?:{status:string;createdAt:string;actor:string}[]};
+export type User={id:number;username:string;name:string;role:'admin'|'advisor';active:number};

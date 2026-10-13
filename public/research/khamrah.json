@@ -1,0 +1,88 @@
+{
+  "discovered": 1,
+  "records": [
+    {
+      "sourceUrl": "https://perfumeriamillennio.com/products/lattafa-khamrah-edp-100ml-perfume-unisex-dulce-especiado",
+      "externalId": "lattafa-khamrah",
+      "checkedAt": "2026-10-12",
+      "name": "Khamrah",
+      "brand": "Lattafa",
+      "concentration": "Eau de Parfum",
+      "gender": "Unisex",
+      "notes": [
+        {
+          "name": "Canela",
+          "phase": "salida"
+        },
+        {
+          "name": "Nuez moscada",
+          "phase": "salida"
+        },
+        {
+          "name": "Bergamota",
+          "phase": "salida"
+        },
+        {
+          "name": "Dátiles",
+          "phase": "corazon"
+        },
+        {
+          "name": "Praliné",
+          "phase": "corazon"
+        },
+        {
+          "name": "Nardos",
+          "phase": "corazon"
+        },
+        {
+          "name": "Mahonial",
+          "phase": "corazon"
+        },
+        {
+          "name": "Vainilla",
+          "phase": "fondo"
+        },
+        {
+          "name": "Haba tonka",
+          "phase": "fondo"
+        },
+        {
+          "name": "Benjuí",
+          "phase": "fondo"
+        },
+        {
+          "name": "Mirra",
+          "phase": "fondo"
+        },
+        {
+          "name": "Amberwood",
+          "phase": "fondo"
+        },
+        {
+          "name": "Akigalawood",
+          "phase": "fondo"
+        }
+      ],
+      "presentations": [
+        {
+          "sizeMl": 100,
+          "kind": "frasco"
+        },
+        {
+          "sizeMl": 5,
+          "kind": "decant"
+        },
+        {
+          "sizeMl": 10,
+          "kind": "decant"
+        }
+      ],
+      "missingFields": [
+        "Precio del negocio",
+        "Stock del negocio",
+        "Imágenes autorizadas",
+        "Familias verificadas"
+      ]
+    }
+  ]
+}

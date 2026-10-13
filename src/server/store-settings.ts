@@ -1,0 +1,22 @@
+import {z} from 'zod';
+import {STORE_NAME,WHATSAPP_NUMBER,STORE_ADDRESS,STORE_CITY,STORE_HOURS,INSTAGRAM_URL,FACEBOOK_URL,INVENTORY} from '../config/store';
+import {one,all,statement} from './db';
+import {parse,safeImage} from './taxonomy';
+import {AppError} from '../lib/domain';
+import type {StoreSettings,PaymentMethod} from '../lib/commerce-types';
+const https=z.string().max(1000).refine(v=>!v||/^https:\/\//.test(v),'El enlace debe usar HTTPS.');
+export const defaults:StoreSettings={version:0,storeName:STORE_NAME,whatsappNumber:WHATSAPP_NUMBER,address:STORE_ADDRESS,city:STORE_CITY,hours:STORE_HOURS,instagramUrl:INSTAGRAM_URL,facebookUrl:FACEBOOK_URL,googleReviewsUrl:'',guarantee:'Si compras un perfume y durante los primeros 3 días de uso sientes que no se adapta a tu piel, puedes devolverlo de acuerdo con las condiciones de garantía del negocio',lowStockThreshold:INVENTORY.lowStockThreshold,heroTitle:'Un aroma. Una forma de ser.',heroText:'Explora notas, descubre afinidades y encuentra tu próxima firma.',heroImage:'/images/campaign.webp',featuredCollectionSlug:null};
+const schema=z.object({version:z.number().int().nonnegative(),storeName:z.string().trim().min(2).max(100),whatsappNumber:z.string().regex(/^\d{10,15}$/),address:z.string().max(200),city:z.string().max(100),hours:z.string().max(200),instagramUrl:https,facebookUrl:https,googleReviewsUrl:https,guarantee:z.string().min(10).max(4000),lowStockThreshold:z.number().int().min(0).max(1000),heroTitle:z.string().min(3).max(120),heroText:z.string().max(300),heroImage:safeImage,featuredCollectionSlug:z.string().nullable()});
+export async function getStoreSettings():Promise<StoreSettings>{const r=await one<{data:string;version:number}>('SELECT * FROM store_settings WHERE id=1');return r?{...defaults,...JSON.parse(r.data),version:r.version}:defaults;}
+export async function saveStoreSettings(input:unknown){const p=parse(schema,input);const r=await statement('INSERT INTO store_settings(id,data,version) SELECT 1,?,1 WHERE ?=0 ON CONFLICT(id) DO UPDATE SET data=excluded.data,version=store_settings.version+1 WHERE store_settings.version=?',JSON.stringify(p),p.version,p.version).run();
+ // Existing rows need the UPDATE path even when version is nonzero.
+ if(!r.meta.changes&&p.version>0){const u=await statement('UPDATE store_settings SET data=?,version=version+1 WHERE id=1 AND version=?',JSON.stringify(p),p.version).run();if(!u.meta.changes)throw new AppError('La configuración cambió. Recarga.',409);}else if(!r.meta.changes)throw new AppError('La configuración cambió. Recarga.',409);
+ return getStoreSettings();}
+export async function listPaymentMethods(activeOnly=false):Promise<PaymentMethod[]>{return(await all<PaymentMethod>('SELECT * FROM payment_methods'+(activeOnly?' WHERE active=1':'')+' ORDER BY position,id')).map(p=>({...p,active:!!p.active}));}
+export async function savePayment(input:unknown,id?:number){const p=parse(z.object({label:z.string().trim().min(2).max(80),image:safeImage.nullable().default(null),active:z.boolean().default(true),position:z.number().int().min(0).default(0),version:z.number().int().default(0)}),input);
+ if(id){const r=await statement('UPDATE payment_methods SET label=?,image=?,active=?,position=?,version=version+1 WHERE id=? AND version=?',p.label,p.image,+p.active,p.position,id,p.version).run();if(!r.meta.changes)throw new AppError('El método cambió. Recarga.',409);}
+ else await statement('INSERT INTO payment_methods(label,image,active,position) VALUES(?,?,?,?)',p.label,p.image,+p.active,p.position).run();return listPaymentMethods();}
+export async function listSocialPosts(publicOnly=true){return all('SELECT * FROM social_posts'+(publicOnly?' WHERE active=1':'')+' ORDER BY position,id');}
+export async function saveSocialPost(input:unknown,id?:number){const p=parse(z.object({url:https.refine(Boolean),image:safeImage,title:z.string().max(200).default(''),active:z.boolean().default(true),position:z.number().int().min(0).default(0),version:z.number().int().default(0)}),input);
+ if(id){const r=await statement('UPDATE social_posts SET url=?,image=?,title=?,active=?,position=?,version=version+1 WHERE id=? AND version=?',p.url,p.image,p.title,+p.active,p.position,id,p.version).run();if(!r.meta.changes)throw new AppError('La publicación cambió. Recarga.',409);}
+ else await statement('INSERT INTO social_posts(url,image,title,active,position) VALUES(?,?,?,?,?)',p.url,p.image,p.title,+p.active,p.position).run();return listSocialPosts(false);}

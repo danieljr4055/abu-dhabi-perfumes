@@ -1,0 +1,34 @@
+import {setup} from './support/database.mjs';
+import {test} from 'node:test';
+import assert from 'node:assert/strict';
+const raw=setup();
+const {GET,POST}=await import('../app/api/[...path]/route.ts');
+const {createSession}=await import('../src/server/security.ts');
+const {authorizeGoogleIdentity}=await import('../src/server/google-auth.ts');
+const origin='https://store.example';
+const req=(path,body)=>new Request(origin+'/api/'+path,{method:body?'POST':'GET',headers:{...(body?{'origin':origin,'content-type':'application/json'}:{}),...(globalThis.__testCookies?.perfume_session?{cookie:'perfume_session='+globalThis.__testCookies.perfume_session}:{})},...(body?{body:JSON.stringify(body)}:{})});
+test('API rechaza acceso anónimo, CSRF, asesores y cuentas revocadas',async()=>{
+ assert.equal((await GET(req('admin/users'))).status,401);
+ assert.equal((await POST(req('admin/commerce/products',{name:'Bad'}))).status,401);
+ assert.equal((await POST(new Request(origin+'/api/admin/users',{method:'POST',body:'{}'}))).status,403);
+ raw.exec("INSERT INTO users(id,username,name,password_hash,role,created_at) VALUES(1,'advisor','Asesor','','advisor','now'),(2,'admin','Admin','','admin','now')");
+ let session=await createSession(req('auth/login'),{id:1,username:'advisor',name:'Asesor',role:'advisor'});
+ globalThis.__testCookies={perfume_session:session.cookie.match(/perfume_session=([^;]+)/)[1]};
+ assert.equal((await POST(req('admin/commerce/products',{name:'Bad'}))).status,403);
+ session=await createSession(req('auth/login'),{id:2,username:'admin',name:'Admin',role:'admin'});
+ globalThis.__testCookies={perfume_session:session.cookie.match(/perfume_session=([^;]+)/)[1]};
+ assert.equal((await GET(req('admin/users'))).status,200);
+ assert.equal((await POST(req('admin/commerce/products',{name:'Bad',admin:true}))).status,422);
+ await authorizeGoogleIdentity({userId:1,email:'advisor@gmail.com',active:false},2);
+ assert.equal(raw.prepare('SELECT count(*) n FROM sessions WHERE user_id=1').get().n,0);
+ globalThis.__testCookies={};
+ assert.equal((await POST(req('auth/google/challenge',{}))).status,503);
+});
+test('rate limit administrativo devuelve 429 sin escribir',async()=>{
+ const session=await createSession(req('auth/login'),{id:2,username:'admin',name:'Admin',role:'admin'});
+ globalThis.__testCookies={perfume_session:session.cookie.match(/perfume_session=([^;]+)/)[1]};
+ let result;
+ for(let i=0;i<31;i++)result=await POST(req('admin/commerce/products',{admin:true}));
+ assert.equal(result.status,429);
+ assert.equal(raw.prepare('SELECT count(*) n FROM products').get().n,0);
+});

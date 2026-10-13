@@ -1,0 +1,6 @@
+import { notFound } from 'next/navigation';
+import ProductDetail from '../../../src/components/ProductDetail';
+import { getProduct,listProducts } from '../../../src/server/catalog';
+export const dynamic='force-dynamic';
+export async function generateMetadata({params}:{params:Promise<{codigo:string}>}){try{const p=await getProduct((await params).codigo);return{title:`${p.brand} ${p.name} ${p.size} | Abu Dhabi Perfumes`,description:p.description,openGraph:{title:`${p.brand} ${p.name}`,description:p.description,type:'website'}};}catch{return{title:'Producto no encontrado'};}}
+export default async function Page({params}:{params:Promise<{codigo:string}>}){let p;try{p=await getProduct((await params).codigo);}catch(e){if((e as any).status===404)notFound();throw e;}const related=(await listProducts(new URLSearchParams({limit:'5',genero:p.gender}))).products.filter(x=>x.code!==p.code).slice(0,4);return <><script type="application/ld+json" dangerouslySetInnerHTML={{__html:JSON.stringify({'@context':'https://schema.org','@type':'Product',name:`${p.brand} ${p.name}`,sku:p.code,description:p.description,brand:{'@type':'Brand',name:p.brand},offers:{'@type':'Offer',priceCurrency:'COP',price:p.price,availability:p.available?'https://schema.org/InStock':'https://schema.org/OutOfStock'}}).replace(/</g,'\\u003c')}}/><ProductDetail product={p} related={related}/></>;}

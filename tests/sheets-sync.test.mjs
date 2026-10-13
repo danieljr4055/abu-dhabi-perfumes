@@ -1,0 +1,32 @@
+import {setup} from './support/database.mjs';
+import {test} from 'node:test';
+import assert from 'node:assert/strict';
+const raw=setup();
+const {saveTaxonomy}=await import('../src/server/taxonomy.ts');
+const {saveCatalogProduct}=await import('../src/server/product-editor.ts');
+const {runSheetSync}=await import('../src/server/sheets-sync.ts');
+test('Sheets conserva pendientes ante falla, evita simultaneidad y no pierde revisiones nuevas',async()=>{
+ const brand=await saveTaxonomy('brands',{name:'Sync',slug:'sync'});
+ const product=await saveCatalogProduct({code:'SYN-001',slug:'sync-product',name:'=texto',brandId:brand.id,gender:'Unisex',variants:[{sku:'SYN-001-100',kind:'frasco',sizeMl:100,price:100,stock:5,commercialVerified:true}]});
+ const id=product.variants[0].id;
+ await assert.rejects(runSheetSync(async()=>{throw new Error('external secret error');}),/sincronizar/);
+ let row=raw.prepare('SELECT * FROM sheet_sync WHERE variant_id=?').get(id);
+ assert.equal(row.synced_revision,0);assert.equal(row.attempts,1);
+ assert.equal(row.last_error.includes('secret'),false);
+ raw.prepare('UPDATE sheet_sync SET next_attempt=0').run();
+ let calls=0;
+ await runSheetSync(async entries=>{
+  calls++;assert.equal(entries[0].values[0][0],'SYN-001-100');
+  assert.equal(entries[0].values[0][1],'=texto');
+  assert.equal(entries[0].values[0][7],false);
+  await assert.rejects(runSheetSync(async()=>{}),/curso/);
+  raw.prepare('UPDATE product_variants SET stock=4 WHERE id=?').run(id);
+ });
+ row=raw.prepare('SELECT * FROM sheet_sync WHERE variant_id=?').get(id);
+ assert.ok(row.revision>row.synced_revision);
+ await runSheetSync(async()=>{calls++;});
+ assert.equal(calls,2);
+ row=raw.prepare('SELECT * FROM sheet_sync WHERE variant_id=?').get(id);
+ assert.equal(row.revision,row.synced_revision);
+ assert.equal((await runSheetSync(async()=>{throw new Error('should not run')})).synced,0);
+});
