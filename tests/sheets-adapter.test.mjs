@@ -3,7 +3,7 @@ import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {generateKeyPair,exportPKCS8,jwtVerify} from 'jose';
 setup();
-const {sendToGoogle}=await import('../src/server/sheets-sync.ts');
+const {sendToGoogle,checkSheetConnection}=await import('../src/server/sheets-sync.ts');
 test('adaptador Sheets firma OAuth, limita destinos, amplía filas y escribe texto RAW',async()=>{
  const {privateKey,publicKey}=await generateKeyPair('RS256',{extractable:true});
  globalThis.__testEnv={GOOGLE_SERVICE_ACCOUNT_EMAIL:'qa@example.invalid',GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY:await exportPKCS8(privateKey),GOOGLE_SPREADSHEET_ID:'qa-sheet'};
@@ -28,5 +28,25 @@ test('adaptador Sheets firma OAuth, limita destinos, amplía filas y escribe tex
   const body=JSON.parse(calls[3].options.body);
   assert.equal(body.valueInputOption,'RAW');assert.equal(body.data[1].values[0][1],'=no ejecutar');
   assert.deepEqual(body.data[0].values[0],['sku','nombre','marca','categoria','precio','cantidad','imagen_url','publicado','actualizado_en']);
+ }finally{globalThis.fetch=original;delete globalThis.__testEnv;}
+});
+
+test('comprobar conexión verifica credenciales y hoja aun sin productos, sin escribir filas de catálogo',async()=>{
+ const {privateKey}=await generateKeyPair('RS256',{extractable:true});
+ globalThis.__testEnv={GOOGLE_SERVICE_ACCOUNT_EMAIL:'qa@example.invalid',GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY:await exportPKCS8(privateKey),GOOGLE_SPREADSHEET_ID:'qa-sheet'};
+ const original=globalThis.fetch,calls=[];
+ globalThis.fetch=async(url,options)=>{
+  calls.push({url,options});
+  if(url==='https://oauth2.googleapis.com/token')return Response.json({access_token:'qa'});
+  if(options.method==='GET')return Response.json({sheets:[{properties:{title:'Productos',sheetId:1,gridProperties:{rowCount:1000}}}]});
+  return Response.json({});
+ };
+ try{
+  assert.deepEqual(await checkSheetConnection(),{connected:true});
+  assert.equal(calls.length,3);
+  const data=JSON.parse(calls[2].options.body).data;
+  assert.equal(data.length,1);assert.equal(data[0].range,"'Productos'!A1:I1");
+  globalThis.fetch=async()=>{throw new Error('private credential details');};
+  await assert.rejects(checkSheetConnection(),error=>error.status===503&&!error.message.includes('private credential'));
  }finally{globalThis.fetch=original;delete globalThis.__testEnv;}
 });

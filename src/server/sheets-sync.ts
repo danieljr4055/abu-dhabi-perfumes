@@ -31,6 +31,11 @@ export async function sendToGoogle(entries:Entry[]){
  // RAW is mandatory: names starting with "=" remain text, never formulas.
  await request('/values:batchUpdate',{valueInputOption:'RAW',data:[{range:"'Productos'!A1:I1",values:[headers]},...entries]});
 }
+/** Validate real credentials and write only the reserved header row, even for an empty catalog. */
+export async function checkSheetConnection(){
+ try{await sendToGoogle([]);return{connected:true};}
+ catch(error){if(error instanceof AppError)throw error;throw new AppError('No se pudo conectar con Google Sheets. Revisa la clave, la API habilitada, el permiso Editor y la pestaña Productos.',503);}
+}
 export async function sheetSyncStatus(){
  return all('SELECT s.variant_id,s.revision,s.synced_revision,s.attempts,s.next_attempt,s.last_error,s.synced_at,v.sku,p.name FROM sheet_sync s JOIN product_variants v ON v.id=s.variant_id JOIN products p ON p.id=v.product_id WHERE s.revision>s.synced_revision ORDER BY s.variant_id LIMIT 100');
 }
