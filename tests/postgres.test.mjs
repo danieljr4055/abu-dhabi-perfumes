@@ -14,6 +14,7 @@ test('PostgreSQL mantiene compra, históricos, transacciones y cola Sheets',asyn
  const pg=new PGlite();
  await pg.exec(readFileSync('postgres/0001_initial.sql','utf8'));
  await pg.exec(readFileSync('postgres/0002_sync.sql','utf8'));
+ await pg.exec(readFileSync('postgres/0003_sheet_master.sql','utf8'));
  const client={query:async(sql,args)=>{const r=await pg.query(sql,args);return{rows:r.rows,rowCount:r.affectedRows??r.rows.length}},release(){}};
  const pool={...client,connect:async()=>client};
  const db=createPostgresDatabase(pool);globalThis.__testDB=db;

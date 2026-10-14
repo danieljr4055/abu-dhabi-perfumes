@@ -3,7 +3,7 @@ import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {generateKeyPair,exportPKCS8,jwtVerify} from 'jose';
 setup();
-const {sendToGoogle,checkSheetConnection}=await import('../src/server/sheets-sync.ts');
+const {sendToGoogle,checkSheetConnection,readSheetCatalog}=await import('../src/server/sheets-sync.ts');
 test('adaptador Sheets firma OAuth, limita destinos, amplía filas y escribe texto RAW',async()=>{
  const {privateKey,publicKey}=await generateKeyPair('RS256',{extractable:true});
  globalThis.__testEnv={GOOGLE_SERVICE_ACCOUNT_EMAIL:'qa@example.invalid',GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY:await exportPKCS8(privateKey),GOOGLE_SPREADSHEET_ID:'qa-sheet'};
@@ -49,4 +49,17 @@ test('comprobar conexión verifica credenciales y hoja aun sin productos, sin es
   globalThis.fetch=async()=>{throw new Error('private credential details');};
   await assert.rejects(checkSheetConnection(),error=>error.status===503&&!error.message.includes('private credential'));
  }finally{globalThis.fetch=original;delete globalThis.__testEnv;}
+});
+
+test('lector no corta silenciosamente productos después de filas vacías o del límite',async()=>{
+ const {privateKey}=await generateKeyPair('RS256',{extractable:true});
+ globalThis.__testEnv={GOOGLE_SERVICE_ACCOUNT_EMAIL:'qa@example.invalid',GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY:await exportPKCS8(privateKey),GOOGLE_SPREADSHEET_ID:'qa-sheet'};
+ const original=globalThis.fetch;
+ globalThis.fetch=async(url)=>{
+  if(url==='https://oauth2.googleapis.com/token')return Response.json({access_token:'qa'});
+  if(!url.includes('/values/'))return Response.json({sheets:[{properties:{title:'Productos',sheetId:1,gridProperties:{rowCount:25000,columnCount:26}}}]});
+  assert.ok(decodeURIComponent(url).includes("'Productos'!A:T?"),'Debe leer toda la columna, no cortar filas');
+  return Response.json({values:[['sku','nombre','marca','precio','cantidad'],...Array.from({length:20001},()=>[]),['LAST-SKU','Último','QA',100,1]]});
+ };
+ try{await assert.rejects(readSheetCatalog(),/límite/);}finally{globalThis.fetch=original;delete globalThis.__testEnv;}
 });

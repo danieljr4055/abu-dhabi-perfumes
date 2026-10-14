@@ -18,7 +18,7 @@ export async function createVariantOrder(input:unknown){
  const items=data.items.map(i=>{
  const v=rows.find(v=>v.id===i.variantId);
  if(!v||v.code!==i.code||!v.active||!v.brand_active||v.editorial_state!=='publicado'||!v.commercial_verified||v.stock===null||v.price===null)throw new AppError('Una presentación no está disponible para compra.',409);
- if(v.stock-v.reserved<i.quantity)throw new AppError('No hay suficientes unidades. Actualiza el carrito.',409);
+ if(v.sheet_blocked||v.stock-v.reserved<i.quantity)throw new AppError('No hay suficientes unidades. Actualiza el carrito.',409);
  if(v.price!==i.expectedPrice)throw new AppError('El precio cambió. Revisa el carrito.',409);
  return{...v,quantity:i.quantity,subtotal:v.price*i.quantity,discount:v.old_price>v.price?v.old_price-v.price:0};
  });
@@ -26,7 +26,7 @@ export async function createVariantOrder(input:unknown){
  const batch=[statement('INSERT INTO transaction_checks(ok) SELECT CASE WHEN EXISTS(SELECT 1 FROM payment_methods WHERE id=? AND active=1 AND version=?) THEN 1 ELSE 0 END',payment.id,payment.version)];
  for(const i of items)batch.push(statement(`INSERT INTO transaction_checks(ok) SELECT CASE WHEN EXISTS(
  SELECT 1 FROM product_variants v JOIN products p ON p.id=v.product_id JOIN brands b ON b.id=p.brand_id
- WHERE v.id=? AND v.version=? AND p.editorial_state='publicado' AND b.active=1 AND v.active=1 AND v.commercial_verified=1 AND v.price=? AND v.stock-v.reserved>=?) THEN 1 ELSE 0 END`,i.id,i.version,i.price,i.quantity));
+ WHERE v.id=? AND v.version=? AND p.editorial_state='publicado' AND b.active=1 AND v.active=1 AND v.commercial_verified=1 AND v.sheet_blocked=0 AND v.price=? AND v.stock-v.reserved>=?) THEN 1 ELSE 0 END`,i.id,i.version,i.price,i.quantity));
  batch.push(statement('INSERT INTO customers(id,name,phone,created_at) VALUES(?,?,?,?)',customerId,data.name,data.phone,now),
  statement('INSERT INTO orders(request_key,fingerprint,customer_id,name,phone,address,city,notes,payment,payment_method_id,whatsapp_number,subtotal,total,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)',data.requestKey,fingerprint,customerId,data.name,data.phone,data.address,data.city,data.notes,payment.label,payment.id,settings.whatsappNumber,total,total,now));
  for(const i of items)batch.push(statement('INSERT INTO order_items(order_id,product_id,variant_id,code,sku,name,brand,size,kind,image,price,old_price,discount,quantity,subtotal) VALUES((SELECT id FROM orders WHERE request_key=?),?,?,?,?,?,?,?,?,?,?,?,?,?,?)',data.requestKey,i.product_id,i.id,i.code,i.sku,i.name,i.brand,i.size_ml+' ml',i.kind,i.image??'',i.price,i.old_price,i.discount,i.quantity,i.subtotal),statement('UPDATE product_variants SET reserved=reserved+?,version=version+1 WHERE id=?',i.quantity,i.id));

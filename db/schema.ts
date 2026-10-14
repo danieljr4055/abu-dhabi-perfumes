@@ -1,6 +1,14 @@
-// Reconciled from migrations 0000–0002; SQL triggers remain in migrations.
+// Reconciled from migrations 0000–0003; SQL triggers remain in migrations.
 import { sqliteTable, index, check, text, integer, uniqueIndex, primaryKey, real } from "drizzle-orm/sqlite-core"
   import { sql } from "drizzle-orm"
+
+export const sheetCatalogRows = sqliteTable('sheet_catalog_rows', {
+ sku:text().primaryKey(),payload:text().notNull(),present:integer().default(1).notNull(),importedAt:text('imported_at').notNull(),
+},table=>[check('sheet_catalog_present_valid',sql`${table.present} IN(0,1)`)]);
+export const sheetImportState = sqliteTable('sheet_import_state', {
+ id:integer().primaryKey(),lastAttempt:text('last_attempt'),lastSuccess:text('last_success'),lastError:text('last_error'),
+ createdCount:integer('created_count').default(0).notNull(),updatedCount:integer('updated_count').default(0).notNull(),exhaustedCount:integer('exhausted_count').default(0).notNull(),warnings:text().default('[]').notNull(),
+},table=>[check('sheet_import_singleton',sql`${table.id}=1`)]);
 
 export const customers = sqliteTable("customers", {
 	id: text().primaryKey().notNull(),
@@ -281,6 +289,7 @@ export const productVariants = sqliteTable("product_variants", {
 	sold: integer().default(0).notNull(),
 	active: integer().default(1).notNull(),
 	commercialVerified: integer("commercial_verified").default(0).notNull(),
+  	sheetBlocked: integer("sheet_blocked").default(0).notNull(),
 	version: integer().default(0).notNull(),
 },
 (table) => [
@@ -292,6 +301,7 @@ export const productVariants = sqliteTable("product_variants", {
 	check("product_variants_check_4", sql`active IN(0,1)`),
 	check("product_variants_check_5", sql`commercial_verified IN(0,1)`),
 	check("valid_variant_inventory", sql`(stock IS NOT NULL AND stock>=reserved OR stock IS NULL AND reserved=0) AND reserved>=0 AND sold>=0`),
+  	check("sheet_blocked_valid", sql`sheet_blocked IN(0,1)`),
 	uniqueIndex("product_variants_sku_unique").on(table.sku),
 ]);
 

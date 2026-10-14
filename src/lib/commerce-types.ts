@@ -3,7 +3,7 @@ export type Phase='salida'|'corazon'|'fondo';
 export type VariantKind='frasco'|'decant';
 export type EditorialState='borrador'|'publicado'|'archivado';
 export interface Taxonomy{id:number;name:string;slug:string;description:string;image:string|null;active:boolean;version:number;familyId:number|null}
-export interface Variant{id:number;productId:number;sku:string;kind:VariantKind;sizeMl:number;price:number|null;oldPrice:number|null;stock:number|null;reserved:number;sold:number;active:boolean;commercialVerified:boolean;version:number}
+export interface Variant{id:number;productId:number;sku:string;kind:VariantKind;sizeMl:number;price:number|null;oldPrice:number|null;stock:number|null;reserved:number;sold:number;active:boolean;commercialVerified:boolean;version:number;sheetBlocked?:boolean}
 export interface NoteRelation{noteId:number;phase:Phase;position:number;note?:Taxonomy}
 export interface PaymentMethod{id:number;label:string;image:string|null;active:boolean;position:number;version:number}
 export interface StoreSettings{version:number;storeName:string;whatsappNumber:string;address:string;city:string;hours:string;instagramUrl:string;facebookUrl:string;googleReviewsUrl:string;guarantee:string;lowStockThreshold:number;heroTitle:string;heroText:string;heroImage:string;featuredCollectionSlug:string|null}

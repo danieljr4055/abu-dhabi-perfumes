@@ -4,9 +4,9 @@ import type {ManagedProduct} from './product-editor';
 export function publicProduct(p:ManagedProduct) {
  const variants=p.variants.filter(v=>v.active&&v.commercialVerified&&v.price!==null&&v.stock!==null).map(v=>({
   id:v.id,sku:v.sku,kind:v.kind,sizeMl:v.sizeMl,price:v.price,oldPrice:v.oldPrice,
-  available:Math.max(0,v.stock!-v.reserved)
+  available:v.sheetBlocked?0:Math.max(0,v.stock!-v.reserved)
  }));
- const v=variants[0];
+ const v=variants.find(v=>v.available>0)??variants[0];
  return {
   id:p.id,code:p.code,slug:p.slug,name:p.name,brand:p.brand,brandSlug:p.brandSlug,
   category:p.category,gender:p.gender,description:p.description,

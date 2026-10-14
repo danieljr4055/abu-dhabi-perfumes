@@ -22,8 +22,8 @@ export async function queryCatalog(params:URLSearchParams,advisor=false,rules:Co
  const vwhere=['v.product_id=p.id','v.active=1'],vargs:unknown[]=[];if(!advisor)vwhere.push('v.commercial_verified=1 AND v.price IS NOT NULL AND v.stock IS NOT NULL');
  for(const[param,col]of [['tipo','kind'],['tamano','size_ml']])if(params.get(param)){vwhere.push('v.'+col+'=?');vargs.push(params.get(param));}
  for(const[param,op]of [['minPrecio','>='],['maxPrecio','<=']])if(params.get(param)&&Number.isFinite(Number(params.get(param)))){vwhere.push('v.price'+op+'?');vargs.push(Number(params.get(param)));}
- if(params.get('disponibilidad')==='disponible')vwhere.push('v.commercial_verified=1 AND v.price IS NOT NULL AND v.stock>v.reserved');
- if(params.get('disponibilidad')==='agotado')vwhere.push('v.commercial_verified=1 AND v.stock=v.reserved');
+ if(params.get('disponibilidad')==='disponible')vwhere.push('v.commercial_verified=1 AND v.price IS NOT NULL AND v.sheet_blocked=0 AND v.stock>v.reserved');
+ if(params.get('disponibilidad')==='agotado')vwhere.push('v.commercial_verified=1 AND (v.sheet_blocked=1 OR v.stock=v.reserved)');
  if(vwhere.length>2){where.push('EXISTS(SELECT 1 FROM product_variants v WHERE '+vwhere.join(' AND ')+')');args.push(...vargs);}
  const from=' FROM products p JOIN brands b ON b.id=p.brand_id WHERE '+where.join(' AND ');
  const page=Math.max(1,Math.min(10000,parseInt(params.get('page')??'1')||1)),limit=Math.max(1,Math.min(100,parseInt(params.get('limit')??'12')||12));

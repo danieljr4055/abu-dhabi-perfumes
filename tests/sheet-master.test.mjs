@@ -1,0 +1,52 @@
+import {setup} from './support/database.mjs';
+import {test} from 'node:test';
+import assert from 'node:assert/strict';
+const raw=setup();
+const {parseSheetCatalog,importSheetCatalog}=await import('../src/server/sheet-master.ts');
+const {getAdvisorProduct}=await import('../src/server/product-editor.ts');
+const {queryCatalog}=await import('../src/server/discovery.ts');
+const {createVariantOrder}=await import('../src/server/variant-orders.ts');
+const {changeStatus,getOrder}=await import('../src/server/orders.ts');
+const headers=['sku','nombre','marca','precio','cantidad','tamano_ml','publicado','imagen_url','imagen_2','imagen_3','notas_salida','notas_corazon','notas_fondo'];
+const row=['MANDARIN-SKY-100','Mandarin Sky','Marca QA',320000,3,100,true,'/images/perfume-1.webp','/images/perfume-2.webp','/images/perfume-3.webp','Nota salida QA','Nota corazón QA','Nota fondo QA'];
+test('hoja valida cantidades, precios COP, códigos permanentes, duplicados y lectura completa',()=>{
+ const r=parseSheetCatalog([headers,[...row.slice(0,3),'$320.000',...row.slice(4)]]);assert.equal(r[0].price,320000);
+ assert.throws(()=>parseSheetCatalog([headers,row,row]),/duplicado/i);
+ assert.throws(()=>parseSheetCatalog([headers,[...row.slice(0,4),-1,...row.slice(5)]]),/cantidad/i);
+ assert.throws(()=>parseSheetCatalog([['nombre'],['Mandarin Sky']]),/sku/i);
+});
+test('crear desde hoja, cambiar precio sin reponer ventas, agotar ausentes y no rehabilitar al cancelar',async()=>{
+ await importSheetCatalog(async()=>[headers,row]);
+ let product=await getAdvisorProduct('MANDARIN-SKY-100');assert.equal(product.state,'publicado');assert.equal(product.available,3);
+ const v=product.variants[0];
+ const purchase=await createVariantOrder({name:'Juan Pérez',phone:'3001234567',address:'Carrera XX # XX-XX',city:'Cartago',payment:'Transferencia',requestKey:crypto.randomUUID(),items:[{code:product.code,variantId:v.id,quantity:1,expectedPrice:320000}]});
+ await importSheetCatalog(async()=>[headers,row]);assert.equal((await getAdvisorProduct(product.code)).available,2);
+ const repriced=[...row];repriced[3]=350000;
+ await importSheetCatalog(async()=>[headers,repriced]);product=await getAdvisorProduct(product.code);assert.equal(product.price,350000);assert.equal(product.available,2);assert.equal((await getOrder(purchase.code)).items[0].price,320000);
+ await assert.rejects(importSheetCatalog(async()=>[headers,repriced,repriced]),/duplicado/i);
+ assert.equal((await getAdvisorProduct(product.code)).available,2);
+ await importSheetCatalog(async()=>[headers]);assert.equal((await queryCatalog(new URLSearchParams())).products[0].available,0);
+ await changeStatus(purchase.code,'Cancelado',purchase.version,{name:'QA',id:1});assert.equal((await getAdvisorProduct(product.code)).available,0);
+ await assert.rejects(createVariantOrder({name:'Juan Pérez',phone:'3001234567',address:'Carrera XX # XX-XX',city:'Cartago',payment:'Transferencia',requestKey:crypto.randomUUID(),items:[{code:product.code,variantId:v.id,quantity:1,expectedPrice:350000}]}),/unidades|disponible/i);
+ await importSheetCatalog(async()=>[headers,repriced]);assert.equal((await getAdvisorProduct(product.code)).available,3);
+ repriced[4]=0;await importSheetCatalog(async()=>[headers,repriced]);assert.equal((await getAdvisorProduct(product.code)).available,0);
+ const late=[...row];late[0]='READY-TEST-100';late[1]='Ficha QA';
+ await importSheetCatalog(async()=>[headers,repriced,late.slice(0,7)]);assert.equal((await getAdvisorProduct(late[0])).state,'borrador');
+ await importSheetCatalog(async()=>[headers,repriced,late]);assert.equal((await getAdvisorProduct(late[0])).state,'publicado');
+ await importSheetCatalog(async()=>[headers,repriced,late.slice(0,7)]);const cleared=await getAdvisorProduct(late[0]);assert.equal(cleared.state,'borrador');assert.equal(cleared.images.length,0);
+ const race=[...row];race[0]='RACE-TEST-100';race[1]='Concurrencia QA';
+ await importSheetCatalog(async()=>[headers,repriced,late.slice(0,7),race]);
+ const raceProduct=await getAdvisorProduct(race[0]),raceId=raceProduct.variants[0].id;
+ raw.prepare('UPDATE product_variants SET stock=4,reserved=1,version=version+1 WHERE id=?').run(raceId);
+ const original=globalThis.__testDB.prepare;let fired=false;
+ globalThis.__testDB.prepare=sql=>{
+  const wrap=s=>({...s,bind:(...args)=>wrap(s.bind(...args)),first:async()=>{const result=await s.first();if(sql.startsWith('SELECT v.*,p.code')&&result?.sku===race[0]&&!fired){fired=true;raw.prepare('UPDATE product_variants SET reserved=0,version=version+1 WHERE id=?').run(raceId);}return result;}});
+  return wrap(original(sql));
+ };
+ try{race[4]=5;await importSheetCatalog(async()=>[headers,repriced,late.slice(0,7),race]);}finally{globalThis.__testDB.prepare=original;}
+ assert.equal(fired,true);assert.equal((await getAdvisorProduct(race[0])).available,5);
+ const multiHeaders=[...headers,'codigo_producto'];const first=[...row];first[0]='MULTI-QA-100';first[4]=0;const second=[...row];second[0]='MULTI-QA-10';second[3]=30000;second[5]=10;
+ await importSheetCatalog(async()=>[multiHeaders,repriced,late.slice(0,7),race,[...first,'MULTI-QA-001'],[...second,'MULTI-QA-001']]);
+ const multiple=await queryCatalog(new URLSearchParams({q:'MULTI-QA-001'}));assert.equal(multiple.products[0].available,3);
+ raw.close();
+});

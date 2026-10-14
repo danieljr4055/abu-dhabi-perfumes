@@ -14,6 +14,8 @@ if(process.env.NODE_ENV==='production'&&!origin){
  await startBootstrapServer({port,host:process.env.HOST||'0.0.0.0',checkDatabase:()=>pool.query('SELECT 1')});
  console.log('Esperando el dominio Railway; operaciones del negocio bloqueadas.');
 }else{
+ if(process.env.SHEETS_IMPORT_ENABLED==='true'){const {randomBytes}=await import('node:crypto');process.env.SHEETS_SYNC_TOKEN=randomBytes(32).toString('hex');}
  const {startProdServer}=await import('vinext/server/prod-server');
  await startProdServer({port,host:process.env.HOST||'0.0.0.0',outDir:resolve('dist-railway')});
+ if(process.env.SHEETS_IMPORT_ENABLED==='true'&&origin){const {startSheetPoller}=await import('./sheet-poller.mjs');startSheetPoller({port,origin:process.env.PUBLIC_ORIGIN,token:process.env.SHEETS_SYNC_TOKEN});}
 }

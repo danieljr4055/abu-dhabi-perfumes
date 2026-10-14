@@ -11,7 +11,7 @@ test('producto conserva códigos, variantes y publicación exige notas',async()=
  const p=await saveCatalogProduct(draft);
  assert.equal(p.variants[0].stock,7);
  await assert.rejects(saveCatalogProduct({...draft,version:p.version,state:'publicado'},p.id),/fase/);
- const published=await saveCatalogProduct({...draft,version:p.version,state:'publicado',notes:['salida','corazon','fondo'].map(phase=>({noteId:note.id,phase})),variants:p.variants.map(v=>Object.fromEntries(Object.entries(v).filter(([key])=>!['productId','reserved','sold'].includes(key))))},p.id);
+ const published=await saveCatalogProduct({...draft,version:p.version,state:'publicado',notes:['salida','corazon','fondo'].map(phase=>({noteId:note.id,phase})),variants:p.variants.map(v=>Object.fromEntries(Object.entries(v).filter(([key])=>!['productId','reserved','sold','sheetBlocked'].includes(key))))},p.id);
  assert.equal(published.state,'publicado');
  await assert.rejects(saveCatalogProduct({...draft,code:'DIO-OTRO',version:published.version},p.id),/permanente/);
  assert.equal((await getAdvisorProduct(draft.code)).code,draft.code);

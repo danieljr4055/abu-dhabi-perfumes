@@ -47,6 +47,11 @@ export default function Catalog({ initial,title='La colección.',lockedFilters={
     }, 220);
     return () => { clearTimeout(timer); controller.abort(); };
   }, [filters]);
+  useEffect(()=>{
+    const controller=new AbortController();
+    const timer=setInterval(()=>{if(document.visibilityState!=='visible')return;const params=new URLSearchParams({...filters,...lockedFilters});void api<CatalogData>(`/api/products?${params}`,{signal:controller.signal}).then(setData).catch(()=>{});},60000);
+    return()=>{clearInterval(timer);controller.abort();};
+  },[filters]);
 
   const change = (key: string, value: string) => setFilters(current => ({ ...current, [key]: value, page: '1' }));
   const activeFilters = Object.entries(filters).filter(([key, value]) => value && key !== 'page' && key !== 'orden').length;

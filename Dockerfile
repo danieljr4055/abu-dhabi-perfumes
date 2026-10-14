@@ -12,7 +12,7 @@ COPY --from=build --chown=node:node /app/package.json /app/package-lock.json ./
 COPY --from=build --chown=node:node /app/node_modules ./node_modules
 COPY --from=build --chown=node:node /app/dist-railway ./dist-railway
 COPY --from=build --chown=node:node /app/public ./public
-COPY --from=build --chown=node:node /app/scripts/start-railway.mjs /app/scripts/railway-bootstrap.mjs /app/scripts/migrate-postgres.mjs ./scripts/
+COPY --from=build --chown=node:node /app/scripts/start-railway.mjs /app/scripts/sheet-poller.mjs /app/scripts/railway-bootstrap.mjs /app/scripts/migrate-postgres.mjs ./scripts/
 COPY --from=build --chown=node:node /app/postgres ./postgres
 USER node
 CMD ["node","scripts/start-railway.mjs"]

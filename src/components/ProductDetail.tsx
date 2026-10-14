@@ -1,12 +1,12 @@
 'use client';
 
 import Link from '@/src/components/StoreLink';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ArrowLeft, ArrowRight, MessageCircle, Minus, Package, Plus, X, ZoomIn } from 'lucide-react';
 import { currency } from '../config/store';
 import { whatsappUrl } from '../lib/domain';
 import type { Product } from '../lib/types';
-import { useCart, useStore } from './StoreProvider';
+import { api, useCart, useStore } from './StoreProvider';
 import ProductCard from './ProductCard';
 import type { publicProduct } from '../server/public-product';
 
@@ -37,7 +37,9 @@ function PurchasePanel({ product, quantity, setQuantity, add }: { product: Produ
   </div>;
 }
 
-export default function ProductDetail({ product, related }: { product: Product; related: Product[] }) {
+export default function ProductDetail({ product:initialProduct, related }: { product: Product; related: Product[] }) {
+  const [product,setProduct]=useState(initialProduct);
+  useEffect(()=>{const controller=new AbortController();const timer=setInterval(()=>{if(document.visibilityState!=='visible')return;void api<Product>('/api/products/'+initialProduct.code,{signal:controller.signal}).then(setProduct).catch(()=>{});},60000);return()=>{clearInterval(timer);controller.abort();};},[initialProduct.code]);
   const full=product as unknown as ReturnType<typeof publicProduct>;
   const [variant,setVariant]=useState(product.variantId);
   const v=full.variants?.find(v=>v.id===variant);

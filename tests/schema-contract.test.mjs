@@ -4,7 +4,7 @@ import {test} from 'node:test';
 import assert from 'node:assert/strict';
 const db=setup();
 test('snapshot cubre las tablas, columnas y restricciones únicas realmente migradas',()=>{
- const snapshot=JSON.parse(readFileSync('drizzle/meta/0002_snapshot.json','utf8'));
+ const snapshot=JSON.parse(readFileSync('drizzle/meta/0003_snapshot.json','utf8'));
  const tables=db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'").all().map(r=>r.name);
  assert.deepEqual(Object.keys(snapshot.tables).sort(),tables.sort());
  for(const name of tables){
